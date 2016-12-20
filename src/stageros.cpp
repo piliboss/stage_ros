@@ -48,6 +48,7 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
 #include <rosgraph_msgs/Clock.h>
+#include <std_msgs/Int8.h>
 
 #include <std_srvs/Empty.h>
 
@@ -89,6 +90,7 @@ private:
         //ros publishers
         ros::Publisher odom_pub; //one odom
         ros::Publisher ground_truth_pub; //one ground truth
+        ros::Publisher stall_pub; // stall publisher
 
         std::vector<ros::Publisher> image_pubs; //multiple images
         std::vector<ros::Publisher> depth_pubs; //multiple depths
@@ -354,6 +356,7 @@ StageNode::SubscribeModels()
         new_robot->odom_pub = n_.advertise<nav_msgs::Odometry>(mapName(ODOM, r, static_cast<Stg::Model*>(new_robot->positionmodel)), 10);
         new_robot->ground_truth_pub = n_.advertise<nav_msgs::Odometry>(mapName(BASE_POSE_GROUND_TRUTH, r, static_cast<Stg::Model*>(new_robot->positionmodel)), 10);
         new_robot->cmdvel_sub = n_.subscribe<geometry_msgs::Twist>(mapName(CMD_VEL, r, static_cast<Stg::Model*>(new_robot->positionmodel)), 10, boost::bind(&StageNode::cmdvelReceived, this, r, _1));
+        new_robot->stall_pub = n_.advertise<std_msgs::Int8>(mapName(IFSTALLED, r, static_cast<Stg::Model*>(new_robot->positionmodel)), 10);
 
         for (size_t s = 0;  s < new_robot->lasermodels.size(); ++s)
         {
@@ -511,6 +514,11 @@ StageNode::WorldCallback()
 
         robotmodel->odom_pub.publish(odom_msg);
 
+        //publish stall in topic "ifstalled" with message type Int8
+        std_msgs::Int8 stall_msg;
+        tall_msg.data = robotmodel->positionmodel->Stalled();
+        robotmodel->stall_pub.publish(stall_msg);
+               
         // broadcast odometry transform
         tf::Quaternion odomQ;
         tf::quaternionMsgToTF(odom_msg.pose.pose.orientation, odomQ);
